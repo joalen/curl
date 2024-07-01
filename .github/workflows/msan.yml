@@ -17,15 +17,20 @@ jobs:
         with:
           ref: aab0c16990ff4cccbb68ab9fa9c81823b288fdcc
 
-      - name: Install and run Autoconfigure -- Linux
+      - name: Install Autoconfigure -- Linux
         if: runner.os == 'Linux'
         run: | 
           sudo apt-get update 
-          sudo apt install autoconf
-          autoreconf -i
-      
+          sudo apt install autoconf automake libtool
+
+      - name: Install Autoconfigure -- macOS 
+        if: runner.os == 'macOS'
+        run: | 
+          brew install autoconf automake libtool
+          
       - name: Build repository
         run: | 
+          autoreconf -i
           ./configure --with-openssl
           sed -i 's/^CC\s*=.*/CC = clang/' Makefile
           sed -i 's/^CXX\s*=.*/CXX = clang++/' Makefile
