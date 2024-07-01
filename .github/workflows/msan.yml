@@ -62,7 +62,6 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           #!/bin/bash
-          set +e
 
           DIRECTORY=.
 
@@ -91,7 +90,6 @@ jobs:
         if: runner.os == 'macOS'
         run: |
           #!/bin/bash
-          set +e
           
           DIRECTORY=.
           
