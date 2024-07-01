@@ -16,9 +16,16 @@ jobs:
         uses: actions/checkout@v2 
         with:
           ref: aab0c16990ff4cccbb68ab9fa9c81823b288fdcc
-          
+
+      - name: Install dependency (Autoconfigure) -- Linux
+        if: runner.os == 'Linux'
+        run: | 
+          sudo apt-get update 
+          sudo apt install autoconf
+  
       - name: Build repository
         run: | 
+          autoreconf -i
           ./configure --with-openssl
           sed -i 's/^CC\s*=.*/CC = clang/' Makefile
           sed -i 's/^CXX\s*=.*/CXX = clang++/' Makefile
