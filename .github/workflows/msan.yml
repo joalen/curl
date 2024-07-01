@@ -22,7 +22,11 @@ jobs:
         run: | 
           sudo apt-get update 
           sudo apt install autoconf
-  
+
+      - name: Install dependency (Autoconfigure) -- macoS
+        if: runner.os == 'macOS'
+        run: brew install autoconf
+      
       - name: Build repository
         run: | 
           autoreconf -i
