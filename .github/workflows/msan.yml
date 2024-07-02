@@ -5,125 +5,59 @@ on:
 
 jobs:
   run-msan:
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [ubuntu-latest, macos-latest]
+    runs-on: ubuntu-latest
 
     steps:
       - name: Check out repository
         uses: actions/checkout@v2
+        with:
+          ref: aab0c16990ff4cccbb68ab9fa9c81823b288fdcc
 
-      - name: Install MemorySanitizer dependencies (Linux)
-        if: runner.os == 'Linux'
-        run: sudo apt-get install -y clang-14 libclang-14-dev llvm-14 llvm-14-dev llvm-14-tools llvm-14-linker-tools
-        
-      - name: Install dependencies (Linux)
-        if: runner.os == 'Linux'
+      - name: Set up Docker
         run: |
-          sudo apt-get update
-          sudo apt-get install -y autoconf automake libtool clang llvm
+          docker run --name msan-container -v ${{ github.workspace }}:/workspace -w /workspace -d ubuntu:22.04 tail -f /dev/null
+          docker exec msan-container apt-get update
+          docker exec msan-container apt-get install -y autoconf automake libtool clang llvm build-essential
 
-      - name: Install MemorySanitizer dependencies (macOS)
-        if: runner.os == 'macOS'
+      - name: Build and run MemorySanitizer
         run: |
-          brew update
-          brew install llvm ninja coreutils
-      
-      - name: Install dependencies (macOS)
-        if: runner.os == 'macOS'
+          docker exec msan-container bash -c "
+            autoreconf -i &&
+            ./configure --with-openssl &&
+            sed -i 's/^CC\s*=.*/CC = clang/' Makefile &&
+            sed -i 's/^CXX\s*=.*/CXX = clang++/' Makefile &&
+            sed -i 's/^CFLAGS\s*=.*/& -fsanitize=memory -fsanitize-memory-track-origins -fPIE -fPIC -g -O2/' Makefile &&
+            sed -i 's/^LDFLAGS\s*=.*/& -fsanitize=memory -pie/' Makefile &&
+            sed -i 's/^CPP\s*=.*/CPP = clang -E/' Makefile &&
+            make
+          "
+
+      - name: Run MemorySanitizer on executables
         run: |
-          brew update
-          brew install autoconf automake libtool llvm coreutils
+          docker exec msan-container bash -c "
+            set +e 
+            DIRECTORY=.
+            is_executable() {
+              local file=\"\$1\"
+              if file \"\$file\" | grep -q 'ELF 64-bit'; then
+                return 0
+              else
+                return 1
+              fi
+            }
+            run_with_msan() {
+              local executable=\"\$1\"
+              MSAN_OPTIONS=\"exit_code=1 verbosity=1 halt_on_error=1 print_stats=1\" timeout 10s \"\$executable\"
+              local exit_status=\$?
+            }
+            find \"\$DIRECTORY\" -type f -executable | while read -r file; do
+              if is_executable \"\$file\"; then
+                run_with_msan \"\$file\"
+              fi
+            done
+          "
 
-      - name: Configure and build with MemorySanitizer (Linux)
-        if: runner.os == 'Linux'
+      - name: Cleanup Docker
         run: |
-          autoreconf -i
-          ./configure --with-openssl
-          sed -i 's/^CC\s*=.*/CC = clang/' Makefile
-          sed -i 's/^CXX\s*=.*/CXX = clang++/' Makefile
-          sed -i 's/^CFLAGS\s*=.*/& -fsanitize=memory -fsanitize-memory-track-origins -fPIE -fPIC -g -O2/' Makefile
-          sed -i 's/^LDFLAGS\s*=.*/& -fsanitize=memory -pie/' Makefile
-          sed -i 's/^CPP\s*=.*/CPP = clang -E/' Makefile
-          make
-
-      - name: Configure and build with MemorySanitizer (macOS)
-        if: runner.os == 'macOS'
-        run: |
-          autoreconf -i
-          ./configure --with-openssl
-          sed -i '' 's/^CC\s*=.*/CC = clang/' Makefile
-          sed -i '' 's/^CXX\s*=.*/CXX = clang++/' Makefile
-          sed -i '' 's/^CFLAGS\s*=.*/& -fsanitize=memory -fsanitize-memory-track-origins -fPIE -fPIC -g -O2/' Makefile
-          sed -i '' 's/^LDFLAGS\s*=.*/& -fsanitize=memory -pie/' Makefile
-          sed -i '' 's/^CPP\s*=.*/CPP = clang -E/' Makefile
-          make
-
-      - name: Run MemorySanitizer (Linux)
-        if: runner.os == 'Linux'
-        run: |
-          #!/bin/bash
-          set +e
-          ulimit -c unlimited
-          
-          DIRECTORY=$(pwd)
-          
-          is_executable() {
-            local file="$1"
-            if file "$file" | grep -q 'ELF 64-bit'; then
-              echo file $file
-            else
-              return 1
-            fi
-          }
-
-          run_with_msan() {
-            local executable="$1"
-            MSAN_OPTIONS="exit_code=1 verbosity=1 halt_on_error=1 print_stats=1" timeout 10s "$executable"
-            local exit_status=$?
-            if [ $exit_status -eq 124 ]; then
-              echo "Command timed out after 10 seconds: $executable"
-            fi
-          }
-
-          find "$DIRECTORY" -type f -executable | while read -r file; do
-            if is_executable "$file"; then
-              echo "Running $file with MemorySanitizer (MSan)..."
-              run_with_msan "$file"
-            fi
-          done
-          echo -e "\a"
-
-      - name: Run MemorySanitizer (macOS)
-        if: runner.os == 'macOS'
-        run: |
-          #!/bin/bash
-          set +e
-          DIRECTORY=$(pwd)
-
-          is_executable() {
-            local file="$1"
-            if file "$file" | grep -qE 'ELF 64-bit|Mach-O'; then
-              echo $file
-            else
-              return 1
-            fi
-          }
-
-          run_with_msan() {
-            local executable="$1"
-            MSAN_OPTIONS="exit_code=1 verbosity=1 halt_on_error=1 print_stats=1" gtimeout 10s "$executable"
-            local exit_status=$?
-            if [ $exit_status -eq 124 ]; then
-              echo "Command timed out after 10 seconds: $executable"
-            fi
-          }
-
-          find "$DIRECTORY" -type f -executable | while read -r file; do
-            if is_executable "$file"; then
-              echo "Running $file with MemorySanitizer (MSan)..."
-              run_with_msan "$file"
-            fi
-          done
-          echo -e "\a"
+          docker stop msan-container
+          docker rm msan-container
