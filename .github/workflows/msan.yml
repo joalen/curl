@@ -66,7 +66,7 @@ jobs:
           is_executable() {
             local file="$1"
             if file "$file" | grep -q 'ELF 64-bit'; then
-              return 0
+              echo $file
             else
               return 1
             fi
@@ -99,7 +99,7 @@ jobs:
           is_executable() {
             local file="$1"
             if file "$file" | grep -qE 'ELF 64-bit|Mach-O'; then
-              return 0
+              echo $file
             else
               return 1
             fi
