@@ -38,6 +38,7 @@ jobs:
           sed -i 's/^CFLAGS\s*=.*/& -fsanitize=memory -fsanitize-memory-track-origins -fPIE -fPIC -g -O2/' Makefile
           sed -i 's/^LDFLAGS\s*=.*/& -fsanitize=memory -pie/' Makefile
           sed -i 's/^CPP\s*=.*/CPP = clang -E/' Makefile
+          grep -i "memory" Makefile
           make 
 
       - name: Build repository (macOS)
