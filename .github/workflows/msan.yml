@@ -46,6 +46,7 @@ jobs:
         run: |
           #!/bin/bash
           set +e 
+          mkdir -p memorysan_logs
           
           DIRECTORY=.
           is_executable() {
@@ -58,7 +59,7 @@ jobs:
           }
           run_with_msan() {
             local executable="$1"
-            MSAN_OPTIONS="exit_code=1 verbosity=1 halt_on_error=1 print_stats=1" timeout 10s "$executable"
+            MSAN_OPTIONS="exit_code=1 verbosity=1 halt_on_error=1 print_stats=1 log_path=./memorysan_logs/$(basename "$executable").txt" timeout 10s "$executable"
             local exit_status=$?
           }
           find "$DIRECTORY" -type f -executable | while read -r file; do
@@ -66,3 +67,9 @@ jobs:
               run_with_msan "$file"
             fi
           done
+          
+      - name: Upload Msan reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: msan-report-${{ github.event.repository.name}}-on-${{ matrix.os }}-from_branch_${{ github.ref_name }}
+          path: './memorysan_logs/*'
