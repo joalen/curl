@@ -2556,13 +2556,13 @@ static CURLcode serial_transfers(struct GlobalConfig *global,
   struct per_transfer *per;
   bool added = FALSE;
 
-  /*result = create_transfer(global, share, &added);
+  result = create_transfer(global, share, &added);
   if(result)
     return result;
   if(!added) {
     errorf(global, "no transfer performed");
     return CURLE_READ_ERROR;
-  }*/
+  }
   for(per = transfers; per;) {
     bool retry;
     long delay_ms;
