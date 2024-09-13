@@ -2556,13 +2556,13 @@ static CURLcode serial_transfers(struct GlobalConfig *global,
   struct per_transfer *per;
   bool added = FALSE;
 
-  result = create_transfer(global, share, &added);
+  /*result = create_transfer(global, share, &added);
   if(result)
     return result;
   if(!added) {
     errorf(global, "no transfer performed");
     return CURLE_READ_ERROR;
-  }
+  }*/
   for(per = transfers; per;) {
     bool retry;
     long delay_ms;
@@ -2578,6 +2578,7 @@ static CURLcode serial_transfers(struct GlobalConfig *global,
         break;
     }
     start = tvnow();
+     
 #ifdef DEBUGBUILD
     if(global->test_event_based)
       result = curl_easy_perform_ev(per->curl);
@@ -2591,17 +2592,18 @@ static CURLcode serial_transfers(struct GlobalConfig *global,
       continue;
     }
 
-    /* Bail out upon critical errors or --fail-early */
+   /*
+    // Bail out upon critical errors or --fail-early
     if(is_fatal_error(returncode) || (returncode && global->fail_early))
       bailout = TRUE;
     else {
-      /* setup the next one just before we delete this */
+      // setup the next one just before we delete this
       result = create_transfer(global, share, &added);
       if(result) {
         returncode = result;
         bailout = TRUE;
       }
-    }
+    }*/
 
     per = del_per_transfer(per);
 
